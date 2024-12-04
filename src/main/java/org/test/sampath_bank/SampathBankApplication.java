@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class SampathBankApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SampathBankApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SampathBankApplication.class, args);
+    }
 
 }
