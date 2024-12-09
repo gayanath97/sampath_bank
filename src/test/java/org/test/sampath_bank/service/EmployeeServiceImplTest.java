@@ -7,10 +7,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.test.sampath_bank.dto.EmployeeDTO;
 import org.test.sampath_bank.model.Employee;
 import org.test.sampath_bank.repository.EmployeeRepository;
+import org.test.sampath_bank.exception.ResourceNotFoundException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -52,18 +54,32 @@ public class EmployeeServiceImplTest {
         verify(employeeRepository, times(1)).save(any());
     }
 
-//    @Test
-//    void getAllEmployees_Success() {
-//        when(employeeRepository.findAll())
-//                .thenReturn(Arrays.asList(convertToEntity(sampleEmployeeDTO)));
-//
-//        Page<EmployeeDTO> result = employeeService.getAllEmployees(PageRequest.of(0, 10));
-//
-//        assertNotNull(result);
-//        assertFalse(result.isEmpty());
-//        assertEquals(1, result.size());
-//        assertEquals(sampleEmployeeDTO.getFirstName(), result.getContent().get(0).getFirstName());
-//    }
+    @Test
+    void getAllEmployees_Success() {
+        List<Employee> employees = Arrays.asList(convertToEntity(sampleEmployeeDTO));
+        Page<Employee> employeePage = new PageImpl<>(employees);
+        
+        when(employeeRepository.findAll(any(PageRequest.class))).thenReturn(employeePage);
+
+        Page<EmployeeDTO> result = employeeService.getAllEmployees(PageRequest.of(0, 10));
+
+        assertNotNull(result);
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.getTotalElements());
+        assertEquals(sampleEmployeeDTO.getFirstName(), result.getContent().get(0).getFirstName());
+        verify(employeeRepository).findAll(any(PageRequest.class));
+    }
+
+    @Test
+    void getAllEmployees_WhenEmpty_ReturnsEmptyPage() {
+        Page<Employee> emptyPage = new PageImpl<>(Arrays.asList());
+        when(employeeRepository.findAll(any(PageRequest.class))).thenReturn(emptyPage);
+
+        Page<EmployeeDTO> result = employeeService.getAllEmployees(PageRequest.of(0, 10));
+
+        assertTrue(result.isEmpty());
+        assertEquals(0, result.getTotalElements());
+    }
 
     @Test
     void getEmployeeById_Success() {
@@ -75,6 +91,13 @@ public class EmployeeServiceImplTest {
         assertNotNull(result);
         assertEquals(sampleEmployeeDTO.getId(), result.getId());
         assertEquals(sampleEmployeeDTO.getFirstName(), result.getFirstName());
+    }
+
+    @Test
+    void getEmployeeById_WhenNotFound_ThrowsException() {
+        when(employeeRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> employeeService.getEmployeeById(99L));
     }
 
     @Test
@@ -91,6 +114,14 @@ public class EmployeeServiceImplTest {
     }
 
     @Test
+    void updateEmployee_WhenNotFound_ThrowsException() {
+        when(employeeRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> 
+            employeeService.updateEmployee(99L, sampleEmployeeDTO));
+    }
+
+    @Test
     void deleteEmployee_Success() {
         when(employeeRepository.findById(1L))
                 .thenReturn(Optional.of(convertToEntity(sampleEmployeeDTO)));
@@ -99,6 +130,18 @@ public class EmployeeServiceImplTest {
         employeeService.deleteEmployee(1L);
 
         verify(employeeRepository, times(1)).deleteById(1L);
+    }
+
+    @Test
+    void deleteEmployee_WhenNotFound_ThrowsException() {
+        when(employeeRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> employeeService.deleteEmployee(99L));
+    }
+
+    @Test
+    void createEmployee_WithNullEmployee_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () -> employeeService.saveEmployee(null));
     }
 
     private Employee convertToEntity(EmployeeDTO dto) {
